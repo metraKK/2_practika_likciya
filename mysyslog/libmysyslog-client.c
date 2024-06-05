@@ -1,65 +1,64 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
-#include <string.h>
+#include <dlfcn.h>
+#include "mysyslog.h"
 
-#include <mysyslog.h>
+void print_usage() {
+    printf("Usage: mysyslog-client -m <message> -l <level> -d <driver> -f <format> -p <path>\n");
+}
 
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
     int opt;
     char *message = NULL;
-    int level = LOG_INFO;
-    char *driver = "stdout";
-    char *format = "text";
-    char *path = NULL;
+    int level = INFO;
+    int driver = 0; // 0 for text, 1 for json
+    int format = 0;
+    char *path = "log.txt";
 
-    while ((opt = getopt(argc, argv, "m:p:d:f:o:")) != -1) {
+    while ((opt = getopt(argc, argv, "m:l:d:f:p:")) != -1) {
         switch (opt) {
             case 'm':
                 message = optarg;
                 break;
-            case 'p':
+            case 'l':
                 level = atoi(optarg);
                 break;
             case 'd':
-                driver = optarg;
+                driver = atoi(optarg);
                 break;
             case 'f':
-                format = optarg;
+                format = atoi(optarg);
                 break;
-            case 'o':
+            case 'p':
                 path = optarg;
                 break;
             default:
-                fprintf(stderr, "Usage: %s -m <message> -p <priority> -d <driver> -f <format> -o <filename>\n", argv[0]);
-                exit(EXIT_FAILURE);
+                print_usage();
+                return EXIT_FAILURE;
         }
     }
 
     if (!message) {
-        fprintf(stderr, "Error: Missing message argument (-m).\n");
-        exit(EXIT_FAILURE);
+        print_usage();
+        return EXIT_FAILURE;
     }
 
-    if (!driver) {
-        fprintf(stderr, "Error: Missing driver argument (-d).\n");
-        exit(EXIT_FAILURE);
+    int (*mysyslog_func)(const char*, int, int, int, const char*);
+    void *handle = dlopen(driver == 0 ? "libmysyslog_text.so" : "libmysyslog_json.so", RTLD_LAZY);
+    if (!handle) {
+        fprintf(stderr, "Failed to load driver: %s\n", dlerror());
+        return EXIT_FAILURE;
     }
 
-    if (!format) {
-        fprintf(stderr, "Error: Missing format argument (-f).\n");
-        exit(EXIT_FAILURE);
+    *(void **)(&mysyslog_func) = dlsym(handle, "mysyslog");
+    if (!mysyslog_func) {
+        fprintf(stderr, "Failed to find symbol: %s\n", dlerror());
+        return EXIT_FAILURE;
     }
 
-    if (!path) {
-        path = "stdout";
-    }
-
-    int result = mysyslog(message, level, driver, format, path);
-    if (result != 0) {
-        fprintf(stderr, "Error: Failed to write to syslog.\n");
-        exit(EXIT_FAILURE);
-    }
+    mysyslog_func(message, level, driver, format, path);
+    dlclose(handle);
 
     return EXIT_SUCCESS;
 }
