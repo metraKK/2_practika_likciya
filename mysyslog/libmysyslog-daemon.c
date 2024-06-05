@@ -7,8 +7,10 @@
 #include <sys/stat.h>
 #include "mysyslog.h"
 
-void signal_handler(int sig) {
-    switch (sig) {
+void signal_handler(int sig)
+{
+    switch (sig)
+        {
         case SIGHUP:
             // Reload configuration
             break;
@@ -16,20 +18,23 @@ void signal_handler(int sig) {
             // Terminate the daemon
             exit(0);
             break;
-    }
+        }
 }
 
-void daemonize() {
+void daemonize()
+{
     pid_t pid;
 
     // Fork off the parent process
     pid = fork();
 
     // If we got a good PID, then we can exit the parent process
-    if (pid < 0) {
+    if (pid < 0)
+    {
         exit(EXIT_FAILURE);
     }
-    if (pid > 0) {
+    if (pid > 0)
+    {
         exit(EXIT_SUCCESS);
     }
 
@@ -39,12 +44,14 @@ void daemonize() {
     // Open any logs here
 
     // Create a new SID for the child process
-    if (setsid() < 0) {
+    if (setsid() < 0)
+    {
         exit(EXIT_FAILURE);
     }
 
     // Change the current working directory
-    if ((chdir("/")) < 0) {
+    if ((chdir("/")) < 0)
+    {
         exit(EXIT_FAILURE);
     }
 
@@ -54,7 +61,8 @@ void daemonize() {
     close(STDERR_FILENO);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     daemonize();
 
     // Signal handling
@@ -66,7 +74,8 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, signal_handler);
 
     // Daemon loop
-    while (1) {
+    while (1)
+    {
         mysyslog("Daemon is running...", INFO, 0, 0, "/var/log/mysyslog.log");
         sleep(60);
     }
